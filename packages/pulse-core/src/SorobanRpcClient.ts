@@ -165,6 +165,12 @@ export type SorobanEventXdrFormat = "base64" | "json";
 /**
  * Filter for querying Soroban events.
  * Supports filtering by event type, contract IDs, topics, and topic filters.
+ *
+ * - `topics`: Array of topic arrays. Each inner array represents a topic segment
+ *   (e.g., `[["transfer"], ["from", "to"]]` matches events with topic "transfer"
+ *   and two additional segments). First segment is typically the topic name.
+ * - `topicFilters`: Flat array of individual topic segment filters.
+ *   Each element matches a single segment at any position.
  */
 export type SorobanEventFilter = {
   /** The type of event to filter for. */
@@ -183,9 +189,9 @@ export type SorobanEventFilter = {
 export type SorobanGetEventsParams = {
   /** Start fetching from this ledger sequence. */
   startLedger?: number;
-  /** Cursor to resume from a previous page. */
+  /** Cursor to resume from a previous page (keyword form). */
   cursor?: string;
-  /** Alias for `cursor`. */
+  /** Cursor from the positional `getEvents(startCursor, ...)` form. */
   startCursor?: string;
   /** Event filters (up to 5). */
   filters?: SorobanEventFilter[] | ContractSubscriptionFilter[];
@@ -209,7 +215,8 @@ export type SorobanRpcCallOptions = {
 };
 
 /**
- * Normalized Soroban event shape returned by `getEvents`.
+ * Raw Soroban event record returned by `getEvents`.
+ * Not normalized; `value` is base64-encoded XDR unless `xdrFormat: "json"`.
  */
 export type SorobanRpcEvent = {
   /** Event type (e.g., "contract", "system"). */
@@ -228,7 +235,7 @@ export type SorobanRpcEvent = {
   topic?: unknown[];
   /** Full topic array (name + topic segments). */
   topics?: unknown[];
-  /** Decoded event value (when xdrFormat="json"). */
+  /** Event value (base64 XDR unless xdrFormat="json"). */
   value?: unknown;
   /** Transaction hash that produced this event. */
   txHash?: string;
@@ -304,7 +311,7 @@ export type PollTransactionOptions = SorobanRpcCallOptions & {
  * Result of the `getLatestLedger` RPC call.
  */
 export type SorobanLatestLedgerResult = {
-  /** Echoed JSON-RPC request id. */
+  /** The latest ledger's hash. */
   id?: string;
   /** Protocol version of the network. */
   protocolVersion?: number;
@@ -328,7 +335,7 @@ export interface LedgerCloseTimeSource {
 
 /**
  * Successful JSON-RPC 2.0 response.
- * @template T - The shape of the `result` field.
+ * @typeParam T - The shape of the `result` field.
  */
 export type JsonRpcSuccess<T> = {
   jsonrpc: "2.0";
@@ -351,7 +358,7 @@ export type JsonRpcFailure = {
 
 /**
  * JSON-RPC 2.0 response (success or failure).
- * @template T - The shape of the `result` field on success.
+ * @typeParam T - The shape of the `result` field on success.
  */
 export type JsonRpcResponse<T> = JsonRpcSuccess<T> | JsonRpcFailure;
 
