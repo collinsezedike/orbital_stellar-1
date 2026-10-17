@@ -146,6 +146,15 @@ describe("classifySubmissionError: message and cause extraction", () => {
     );
   });
 
+  it("recognises an ECONN-prefixed cause name", () => {
+    expect(classifySubmissionError(errorWithCause(namedError("ECONNREFUSED"))).kind).toBe(
+      "rpc_network",
+    );
+    expect(classifySubmissionError(errorWithCause(namedError("ECONNRESET"))).kind).toBe(
+      "rpc_network",
+    );
+  });
+
   it("ignores a cause that is not an Error", () => {
     expect(classifySubmissionError(errorWithCause("connection reset")).kind).toBe("unknown");
   });
