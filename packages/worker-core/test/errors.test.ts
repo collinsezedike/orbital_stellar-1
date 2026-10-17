@@ -2,7 +2,19 @@ import { describe, expect, it } from "vitest";
 
 import { SorobanRpcError } from "@orbital-stellar/pulse-core";
 
-import { classifySubmissionError } from "../src/index.js";
+import { classifySubmissionError, isRetryableSubmissionFailure } from "../src/index.js";
+
+function errorWithCause(cause: unknown): Error {
+  const error = new Error("opaque submission failure");
+  (error as { cause?: unknown }).cause = cause;
+  return error;
+}
+
+function namedError(name: string): Error {
+  const error = new Error("inner");
+  error.name = name;
+  return error;
+}
 
 describe("classifySubmissionError: failure kinds", () => {
   it("classifies an insufficient-fee result code as retryable", () => {
@@ -84,5 +96,68 @@ describe("classifySubmissionError: Soroban RPC code mapping", () => {
     expect(failure.message).toBe("server exploded");
     expect(failure.retryable).toBe(true);
     expect(failure.cause).toBe(rpcError);
+  });
+});
+
+describe("classifySubmissionError: message and cause extraction", () => {
+  it("extracts the message from a thrown string", () => {
+    const failure = classifySubmissionError("rate limit");
+    expect(failure.message).toBe("rate limit");
+    expect(failure.kind).toBe("rate_limit");
+  });
+
+  it("extracts the message from a plain object", () => {
+    expect(classifySubmissionError({ message: "insufficient fee" }).message).toBe(
+      "insufficient fee",
+    );
+  });
+
+  it("stringifies a non-string message field", () => {
+    expect(classifySubmissionError({ message: 42 }).message).toBe("[object Object]");
+  });
+
+  it("stringifies a primitive error", () => {
+    expect(classifySubmissionError(404).message).toBe("404");
+  });
+
+  it("stringifies an object without a message field", () => {
+    expect(classifySubmissionError({ foo: "bar" }).message).toBe("[object Object]");
+  });
+
+  it("ignores a non-string result_code", () => {
+    expect(classifySubmissionError({ message: "op failed", result_code: 42 }).kind).toBe("unknown");
+  });
+
+  it("reads a string result_code", () => {
+    expect(classifySubmissionError({ message: "op failed", result_code: "op_invalid" }).kind).toBe(
+      "contract_rejection",
+    );
+  });
+
+  it("classifies a network-named cause as rpc_network", () => {
+    const failure = classifySubmissionError(errorWithCause(namedError("TimeoutError")));
+    expect(failure.kind).toBe("rpc_network");
+    expect(failure.retryable).toBe(true);
+  });
+
+  it("recognises a network-named cause", () => {
+    expect(classifySubmissionError(errorWithCause(namedError("NetworkError"))).kind).toBe(
+      "rpc_network",
+    );
+  });
+
+  it("ignores a cause that is not an Error", () => {
+    expect(classifySubmissionError(errorWithCause("connection reset")).kind).toBe("unknown");
+  });
+
+  it("ignores an Error cause with an unrelated name", () => {
+    expect(classifySubmissionError(errorWithCause(namedError("TypeError"))).kind).toBe("unknown");
+  });
+});
+
+describe("isRetryableSubmissionFailure", () => {
+  it("reflects the classification of the underlying error", () => {
+    expect(isRetryableSubmissionFailure(new Error("rpc timeout"))).toBe(true);
+    expect(isRetryableSubmissionFailure(new Error("contract rejected"))).toBe(false);
   });
 });
