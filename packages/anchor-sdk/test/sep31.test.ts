@@ -222,6 +222,52 @@ describe("Sep31Client Lifecycle (Fixture-backed)", () => {
       "SEP-31 GET /transactions/:id failed: Bad Gateway",
     );
   });
+
+  it("defaults the missing field list on a transaction_info_needed rejection", async () => {
+    (global.fetch as any).mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: "transaction_info_needed" }),
+    });
+
+    const rejection = client.initiateTransaction({ asset_code: "USD", amount: "10" }, "token");
+    await expect(rejection).rejects.toBeInstanceOf(MissingFieldsError);
+    await rejection.catch((err: MissingFieldsError) => {
+      expect(err.missingFields).toEqual([]);
+    });
+  });
+
+  it("defaults the customer type on a customer_info_needed rejection", async () => {
+    (global.fetch as any).mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: "customer_info_needed" }),
+    });
+
+    const rejection = client.initiateTransaction({ asset_code: "USD", amount: "10" }, "token");
+    await expect(rejection).rejects.toBeInstanceOf(CustomerInfoNeededError);
+    await rejection.catch((err: CustomerInfoNeededError) => {
+      expect(err.customerType).toBe("sender");
+      expect(err.neededFields).toEqual([]);
+    });
+  });
+});
+
+describe("SEP-31 error classes", () => {
+  it("MissingFieldsError carries the missing field list", () => {
+    const err = new MissingFieldsError(["routing_number", "account_number"]);
+    expect(err.name).toBe("MissingFieldsError");
+    expect(err.missingFields).toEqual(["routing_number", "account_number"]);
+    expect(err.message).toBe("Missing required fields: routing_number, account_number");
+  });
+
+  it("CustomerInfoNeededError carries the customer type and needed fields", () => {
+    const err = new CustomerInfoNeededError("receiver", ["first_name"]);
+    expect(err.name).toBe("CustomerInfoNeededError");
+    expect(err.customerType).toBe("receiver");
+    expect(err.neededFields).toEqual(["first_name"]);
+    expect(err.message).toBe("Customer info needed for receiver: first_name");
+  });
 });
 
 describe("SEP-12 Customer Info", () => {
