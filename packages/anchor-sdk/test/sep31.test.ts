@@ -152,6 +152,76 @@ describe("Sep31Client Lifecycle (Fixture-backed)", () => {
     expect(res.status).toBe("pending_stellar");
     expect(res.amount_in).toBe("100.00");
   });
+
+  it("throws on a non-2xx /info response", async () => {
+    (global.fetch as any).mockResolvedValue({
+      ok: false,
+      status: 503,
+      statusText: "Service Unavailable",
+      json: async () => ({}),
+    });
+
+    await expect(client.info()).rejects.toThrow("SEP-31 GET /info failed: Service Unavailable");
+  });
+
+  it("rejects a schema-invalid /info body", async () => {
+    (global.fetch as any).mockResolvedValue({
+      ok: true,
+      json: async () => ({ receive: { USD: { fee_fixed: "not-a-number" } } }),
+    });
+
+    await expect(client.info()).rejects.toThrow();
+  });
+
+  it("throws the anchor error message on a 400 that is neither negotiation code", async () => {
+    (global.fetch as any).mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: "invalid_asset" }),
+    });
+
+    await expect(
+      client.initiateTransaction({ asset_code: "USD", amount: "10" }, "token"),
+    ).rejects.toThrow("SEP-31 POST /transactions failed: invalid_asset");
+  });
+
+  it("falls back to the HTTP status text when a transaction failure body has no error", async () => {
+    (global.fetch as any).mockResolvedValue({
+      ok: false,
+      status: 500,
+      statusText: "Internal Server Error",
+      json: async () => ({}),
+    });
+
+    await expect(
+      client.initiateTransaction({ asset_code: "USD", amount: "10" }, "token"),
+    ).rejects.toThrow("SEP-31 POST /transactions failed: Internal Server Error");
+  });
+
+  it("throws on a non-2xx pollStatus response", async () => {
+    (global.fetch as any).mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({ error: "not_found" }),
+    });
+
+    await expect(client.pollStatus("tx123", "token")).rejects.toThrow(
+      "SEP-31 GET /transactions/:id failed: not_found",
+    );
+  });
+
+  it("falls back to the HTTP status text when a pollStatus failure body has no error", async () => {
+    (global.fetch as any).mockResolvedValue({
+      ok: false,
+      status: 502,
+      statusText: "Bad Gateway",
+      json: async () => ({}),
+    });
+
+    await expect(client.pollStatus("tx123", "token")).rejects.toThrow(
+      "SEP-31 GET /transactions/:id failed: Bad Gateway",
+    );
+  });
 });
 
 describe("SEP-12 Customer Info", () => {
