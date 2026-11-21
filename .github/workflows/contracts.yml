@@ -99,6 +99,10 @@ jobs:
 
       - uses: cargo-bins/cargo-binstall@main
 
+      # stellar-cli 25.2.0 requires libdbus-1-dev and pkg-config to build from
+      # source when no prebuilt binary is available for the platform.
+      # Install them upfront so cargo binstall never falls back to a failing
+      # from-source build.
       - name: Install system dependencies for stellar-cli
         run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
 
