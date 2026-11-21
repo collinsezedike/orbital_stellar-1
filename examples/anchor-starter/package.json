@@ -23,7 +23,7 @@
   "dependencies": {
     "@orbital-stellar/anchor-sdk": "^0.2.0",
     "@stellar/stellar-sdk": "^16.1.0",
-    "zod": "^4.4.3"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@orbital-stellar/abi-registry": "^0.2.0",
