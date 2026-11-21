@@ -69,15 +69,21 @@ function Card({ pkg, title, description, npmName, status }: typeof PACKAGES[0]) 
         transition: 'border-color 0.15s',
       }}
     >
-      <p
+      <a
+        href={`https://www.npmjs.com/package/@orbital-stellar/${npmName}`}
+        target="_blank"
+        rel="noopener noreferrer"
         style={{
           fontFamily: 'var(--font-mono)',
           fontSize: '12px',
           color: 'var(--muted)',
+          textDecoration: 'none',
         }}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
       >
         {pkg}
-      </p>
+      </a>
       <p
         style={{
           fontFamily: 'var(--font-sans)',
@@ -105,11 +111,11 @@ function Card({ pkg, title, description, npmName, status }: typeof PACKAGES[0]) 
         style={{
           fontFamily: 'var(--font-mono)',
           fontSize: '12px',
-          color: status === 'Live' ? 'var(--accent)' : 'var(--muted)',
+          color: 'var(--accent)',
           marginTop: '20px',
         }}
       >
-        {status === 'Live' ? '● Live' : '○ Soon'}
+        ● Live
       </p>
     </div>
   )
@@ -136,7 +142,7 @@ export default function SDKEcosystem() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
             gap: '1px',
             background: 'var(--border)',
           }}
