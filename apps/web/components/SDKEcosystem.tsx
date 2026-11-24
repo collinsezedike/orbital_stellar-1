@@ -79,8 +79,6 @@ function Card({ pkg, title, description, npmName, status }: typeof PACKAGES[0]) 
           color: 'var(--muted)',
           textDecoration: 'none',
         }}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
       >
         {pkg}
       </a>
@@ -142,7 +140,7 @@ export default function SDKEcosystem() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))',
             gap: '1px',
             background: 'var(--border)',
           }}
