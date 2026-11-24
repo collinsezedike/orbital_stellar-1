@@ -52,6 +52,24 @@ describe("GET /api/v1/registry/taxonomy", () => {
     const body = (await res.json()) as { data: Array<{ id: string }> };
     expect(body.data.map((r) => r.id)).toEqual(["t2"]);
   });
+
+  it("returns 200 with data and asOfLedger: null when ledger lookup fails", async () => {
+    getCachedLedgerSequence.mockRejectedValue(new Error("RPC unreachable"));
+    const res = await taxonomyGET(
+      new NextRequest("https://orbital.example/api/v1/registry/taxonomy"),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: Array<{ id: string }>;
+      servedFrom: string;
+      asOfLedger: number | null;
+      stale: boolean;
+    };
+    expect(body.data.map((r) => r.id)).toEqual(["t1", "t2"]);
+    expect(body.servedFrom).toBe("static");
+    expect(body.asOfLedger).toBeNull();
+    expect(body.stale).toBe(false);
+  });
 });
 
 describe("GET /api/v1/registry/labels", () => {
@@ -85,5 +103,21 @@ describe("GET /api/v1/registry/labels", () => {
     );
     const body = (await res.json()) as { data: Array<{ contractId: string }> };
     expect(body.data.map((r) => r.contractId)).toEqual(["C2"]);
+  });
+
+  it("returns 200 with data and asOfLedger: null when ledger lookup fails", async () => {
+    getCachedLedgerSequence.mockRejectedValue(new Error("RPC unreachable"));
+    const res = await labelsGET(new NextRequest("https://orbital.example/api/v1/registry/labels"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: Array<{ contractId: string }>;
+      servedFrom: string;
+      asOfLedger: number | null;
+      stale: boolean;
+    };
+    expect(body.data.map((r) => r.contractId)).toEqual(["C1", "C2"]);
+    expect(body.servedFrom).toBe("static");
+    expect(body.asOfLedger).toBeNull();
+    expect(body.stale).toBe(false);
   });
 });

@@ -1,4 +1,5 @@
 import { randomBytes } from "crypto";
+import { Keypair, StrKey } from "@stellar/stellar-sdk";
 import { signWebhookPayload } from "@orbital-stellar/pulse-webhooks";
 import { checkWebhookCooldown, clientIp } from "@/lib/demo-limits";
 
@@ -12,13 +13,17 @@ type Body = {
   address?: string;
 };
 
+// Valid Stellar G-addresses for the sample payload.
+// Generated once at module load so the sample is deterministic and passes StrKey validation.
+const SAMPLE_FROM = Keypair.random().publicKey();
+const SAMPLE_TO = Keypair.random().publicKey();
+
 function generateSamplePayment(toAddress: string) {
-  const fromAddress = `G${randomBytes(28).toString("hex").toUpperCase().slice(0, 55)}`;
   return {
     type: "payment.received" as const,
     to: toAddress,
-    from: fromAddress,
-    amount: (Math.random() * 100 + 1).toFixed(7),
+    from: SAMPLE_FROM,
+    amount: "10.0000000",
     asset: "XLM",
     timestamp: new Date().toISOString(),
     raw: {
@@ -72,9 +77,21 @@ export async function POST(req: Request) {
   const callerSecret = body.secret?.trim().slice(0, MAX_SECRET_LENGTH);
   const secret = callerSecret || `whsec_demo_${randomBytes(16).toString("hex")}`;
   const generatedSecret = !callerSecret;
-  const address =
-    body.address?.trim().slice(0, MAX_ADDRESS_LENGTH) ||
-    "GABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQRSTUV";
+
+  // Validate caller-supplied address; default to a valid StrKey if not provided.
+  // A provided-but-invalid address is a caller error, not something to silently
+  // replace - the demo would then lie about what was asked for.
+  const rawAddress = body.address?.trim().slice(0, MAX_ADDRESS_LENGTH);
+  if (rawAddress && !StrKey.isValidEd25519PublicKey(rawAddress)) {
+    return Response.json(
+      {
+        error: "invalid_address",
+        message: "Address must be a valid Stellar Ed25519 public key (starts with G).",
+      },
+      { status: 400 },
+    );
+  }
+  const address = rawAddress || SAMPLE_TO;
 
   const event = generateSamplePayment(address);
   const payload = JSON.stringify(event);
@@ -90,6 +107,7 @@ export async function POST(req: Request) {
       "x-orbital-attempt": "1",
     },
     secret: generatedSecret ? secret : undefined,
+    sample: true,
     verify: {
       node: `import { verifyWebhook } from "@orbital-stellar/pulse-webhooks";\nverifyWebhook(payload, signature, secret, timestamp);`,
       edge: `import { verifyWebhookEdge } from "@orbital-stellar/pulse-webhooks/edge";\nawait verifyWebhookEdge(payload, signature, secret, timestamp);`,

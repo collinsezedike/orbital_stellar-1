@@ -1106,10 +1106,22 @@ export type ContractEmittedEvent = {
 /** Discriminated union of every normalized Soroban contract event. */
 export type ContractEvent = ContractInvokedEvent | ContractEmittedEvent;
 
+/**
+ * Tells a contract subscriber that a `contract.emitted` event could not be
+ * decoded with an ABI spec: no spec was found for the contract, the registry
+ * lookup failed, or decoding with the spec failed. `EventEngine` emits it as
+ * `event.decode_failed` on the `Watcher` of each `subscribeContract(id)`
+ * subscription whose filters match the event, then still delivers the event
+ * with `decodedData` undefined. It is raised only while ABI decoding is on,
+ * which it is unless `CoreConfig.abiRegistry` is `false`.
+ */
 export type DecodeFailedNotification = {
   type: "event.decode_failed";
+  /** The contract that emitted the event. */
   contractId: ContractAddress;
+  /** The event's id, when it has one. */
   eventId?: string;
+  /** Why decoding failed. */
   error: string;
 };
 
@@ -1158,15 +1170,33 @@ export type ContractSubscribeOptions = {
   name?: string;
 };
 
+// `events` is exported through a specifier instead of `export * as events`
+// because TypeScript attaches no TSDoc to a namespace re-export statement, so
+// check-tsdoc-coverage could not see the comment that was on it. Both forms
+// export the same namespace. The description is written twice on purpose, so
+// keep the two in step: TypeScript reads the comment inside the braces, TypeDoc
+// the one on the statement.
+import * as eventTypes from "./events.js";
+
 /**
- * Namespace grouping all per-event named types for precise type narrowing.
- * @see {@link events} for the full list of narrower per-event types.
+ * Namespace grouping the named per-event types (`events.PaymentEvent`,
+ * `events.TrustlineEvent`, ...), the same types the package root exports by
+ * name. Use it to type a handler for one kind of event; it holds types only,
+ * so import it with `import type`.
  *
  * @example
  * import type { events } from "@orbital-stellar/pulse-core";
  * function handlePayment(e: events.PaymentEvent) { ... }
  */
-export * as events from "./events.js";
+export {
+  /**
+   * Namespace grouping the named per-event types (`events.PaymentEvent`,
+   * `events.TrustlineEvent`, ...), the same types the package root exports by
+   * name. Use it to type a handler for one kind of event; it holds types only,
+   * so import it with `import type`.
+   */
+  eventTypes as events,
+};
 
 // ---------------------------------------------------------------------------
 // Phase 1 - new RPC-shaped contract subscription API

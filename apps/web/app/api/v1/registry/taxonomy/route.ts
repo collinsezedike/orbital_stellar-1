@@ -14,9 +14,12 @@ import type { TaxonomyRecord } from "@/lib/registryData";
 export async function GET(request: NextRequest) {
   const category = request.nextUrl.searchParams.get("category");
 
-  const [{ value: records, stale }, { value: asOfLedger }] = await Promise.all([
+  const [{ value: records, stale }, asOfLedger] = await Promise.all([
     getCachedTaxonomy(),
-    getCachedLedgerSequence(),
+    getCachedLedgerSequence().then(
+      ({ value }) => value,
+      () => null,
+    ),
   ]);
 
   const filtered = category ? records.filter((r) => r.category === category) : records;

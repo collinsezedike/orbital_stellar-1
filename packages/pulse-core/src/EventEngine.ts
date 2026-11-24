@@ -205,6 +205,24 @@ const refKey = {
   config: (filterKey: string) => `config:${filterKey}`,
 };
 
+/**
+ * The in-process source of Stellar events: it streams from Horizon and, when
+ * `config.soroban` is set, polls Stellar RPC for contract events, normalizes
+ * each record and emits it on the `Watcher` of every subscription it matches.
+ * Create one, call `subscribe()` or `subscribeContract()` for the addresses and
+ * contracts you care about (asking twice for the same one returns the same
+ * `Watcher`), then `start()`. A dropped stream is reopened with backoff (see
+ * `config.reconnect`), and `stop()` closes the streams and stops every watcher.
+ *
+ * @throws {@link InvalidIngestionModeError} From the constructor, when
+ *   `config.ingestion` is not a supported mode.
+ * @throws {@link UnknownNetworkError} From the constructor, when
+ *   `config.network` is not a known network and `config.horizonUrl` is unset.
+ * @throws Error From the constructor, for other invalid settings: for example
+ *   a `horizonUrl` that is not an http or https URL, an empty or repeated
+ *   `network` list, or a `soroban` option that is missing or out of range (a
+ *   `TypeError` or `RangeError`).
+ */
 export class EventEngine {
   private server: Horizon.Server;
   private registry: Map<string, Watcher> = new Map();

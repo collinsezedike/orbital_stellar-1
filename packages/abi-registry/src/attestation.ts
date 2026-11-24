@@ -111,6 +111,7 @@ export class AttestationSigningError extends Error {
   }
 }
 
+/** Optional settings passed to {@link signAttestation} to customize the signing domain separator. */
 export type SignAttestationOptions = {
   /** Domain separator. Defaults to {@link ATTESTATION_DOMAIN}. */
   domain?: string;
@@ -179,6 +180,7 @@ export type AttestationInvalidCode =
 export type AttestationVerdict =
   { status: "valid" } | { status: "invalid"; code: AttestationInvalidCode; reason: string };
 
+/** Optional constraints and clock controls for {@link verifyAttestation}. */
 export type VerifyAttestationOptions = {
   /**
    * The attested contract's actual on-chain WASM hash (hex-encoded), fetched

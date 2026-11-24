@@ -136,7 +136,7 @@ the SEP draft.
 ### Wave 1.4 - Discriminated union refinement
 
 - [x] Narrow `NormalizedEvent` types so `switch (event.type)` produces exhaustive type narrowing with no `default` clause - enforced by `packages/pulse-core/test/types.exhaustive.test-d.ts`, run via `pnpm test:types`
-- [ ] Generated schemas from Horizon's OpenAPI
+- [x] Generated schemas from Horizon's OpenAPI - [`scripts/generate-horizon-types.mjs`](./scripts/generate-horizon-types.mjs) writes [`packages/pulse-core/src/_raw-horizon.gen.ts`](./packages/pulse-core/src/_raw-horizon.gen.ts), exported from `pulse-core` through [`raw-horizon.ts`](./packages/pulse-core/src/raw-horizon.ts)
 
 ### Wave 1.5 - Distribution
 
@@ -243,10 +243,12 @@ semantic layer above raw schemas.
 - [x] `orbital typegen <contractId>` - ships TypeScript types + Zod schemas from
   a contract's resolved spec (registry first, WASM auto-discovery fallback);
   verified live against a mainnet contract
-- [ ] Consume SEP-48 event specs natively - embedded `#[contractevent]` spec
+- [x] Consume SEP-48 event specs natively - embedded `#[contractevent]` spec
   first, registry attestation as the fallback for pre-SEP-48 contracts.
   Differentiation vs `stellar contract bindings typescript` stays sharp:
-  Zod runtime validation, typed event guards, and React hooks - not raw types
+  Zod runtime validation, typed event guards, and React hooks - not raw types -
+  [`Sep48EmbeddedClient`](./packages/abi-registry/src/discovery/Sep48EmbeddedClient.ts),
+  which `createDefaultAbiRegistryClient()` inserts first
 - [x] Extend the CLI with typed event guards and `useContractEvent<T>` hooks
   from the registry schema - building on the existing `generate.ts` in
   `packages/abi-registry`
@@ -263,14 +265,16 @@ semantic layer above raw schemas.
 
 ### Wave 2.4 - Hosted registry (operated)
 
-- [ ] Hosted read API for schemas, taxonomy, and labels (client stays MIT)
+- [-] Hosted read API for schemas, taxonomy, and labels (client stays MIT) - routes on `main` in [`apps/web/app/api/v1/registry/`](./apps/web/app/api/v1/registry) (`spec`, `taxonomy`, `labels`, `health`, `openapi.json`)
 - [x] Verification pipeline cross-checking submitted schemas against on-chain `contractspec` - `abi-registry verify` re-checks every entry in `specs/community/` against mainnet in CI (`.github/workflows/community-specs.yml`); 29 verified so far
 - [x] Public registry explorer page in `apps/web` (`/registry`, `/registry/[contractId]`, `/explore`)
-- [ ] Replay/history beyond RPC's ~7-day retention window - built **on top of
-  the Composable Data Platform (Galexie exports) and CAP-67 retroactive
-  backfill**, not as an Orbital-operated ledger store; second candidate move
-  once this wave lands (semantics + memory = the full foundation); not yet
-  scheduled to a wave
+- [x] Replay/history beyond RPC's ~7-day retention window - built **on a
+  backfill-configured RPC** (a second Soroban RPC endpoint with extended
+  retention), not on a Galexie export and not as an Orbital-operated ledger
+  store: `RpcHistoricalSource` / `withHistoricalFallback` in
+  [`packages/pulse-core/src/HistoricalSource.ts`](./packages/pulse-core/src/HistoricalSource.ts);
+  the choice is argued in
+  [`docs/design/long-range-replay.md`](./docs/design/long-range-replay.md) §2
 
 ---
 

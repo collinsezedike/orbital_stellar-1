@@ -5,6 +5,11 @@ import {
   type SubscriptionRecord,
   type SubscriptionTier,
 } from "@orbital-stellar/worker-core";
+import {
+  readSubscriberClaim,
+  verifySubscriberClaim,
+  verifySubscriberRequest,
+} from "@/lib/subscriberAuth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -15,6 +20,23 @@ export const runtime = "nodejs";
  * builds on).
  * `POST /api/workers/subscriptions` — create one.
  *
+ * Both are signed by the subscriber. A request carries `x-orbital-subscriber`
+ * (a `G...` account address), `x-orbital-timestamp` (unix time in
+ * milliseconds) and `x-orbital-signature` (base64 ed25519), and the signature
+ * is a SEP-53 signature, by that address's key, over
+ *
+ *   orbital-subscriptions-v1\n<METHOD>\n<path+query>\n<timestamp>\n<sha256 hex of body, or empty>
+ *
+ * The checks live in `lib/subscriberAuth.ts`, and `docs/api/workers.md` has a
+ * signing example. A request that fails any of them gets the same 401.
+ *
+ * Replay is bounded, not prevented. There is no nonce store, so a captured
+ * request can be sent again until its timestamp is more than five minutes
+ * from server time: a replayed GET returns the same list, a replayed POST
+ * creates the same subscription a second time. The host is not signed either,
+ * so within those five minutes a request signed for one deployment is good on
+ * another.
+ *
  * The store here is in-process, which means it is per-instance and does not
  * survive a restart. That is deliberate and temporary: 20.5 owns the record
  * and its lifecycle, and the durable store lands with the rest of W2. Wiring
@@ -23,7 +45,9 @@ export const runtime = "nodejs";
  * Nothing this route accepts or returns is a credential. There is no field to
  * send a key, an allowance or an address to draw from, because
  * `SubscriptionRecord` has none — see the type-level assertion in
- * `packages/worker-core/test/subscription/noAuthority.test-d.ts`.
+ * `packages/worker-core/test/subscription/noAuthority.test-d.ts`. The
+ * signature is not one either: it is good for one request, and the key that
+ * made it never reaches the server.
  */
 
 const MAX_BODY_BYTES = 4_096;
@@ -40,16 +64,24 @@ const subscriptions = new SubscriptionService({
 });
 
 /**
- * Who is asking.
+ * The answer to a caller who has not proved who they are.
  *
- * Reads a header rather than trusting a body field: a subscriber id in the
- * request body is a request to read someone else's subscriptions. Real
- * authentication arrives with 19.4; until then this route refuses rather than
- * defaulting to "everyone", so it cannot quietly become an open read of every
- * subscription in the process.
+ * The subscriber is read from a header rather than a body field, because a
+ * subscriber id in the request body is a request to act as someone else. The
+ * header alone is not believed either: it is anyone's to type, so the caller
+ * must have signed this request with that address's key. Every failed check
+ * gets this one response, so it does not tell a caller which check they
+ * tripped.
  */
-function subscriberFrom(req: Request): string | null {
-  return req.headers.get("x-orbital-subscriber")?.trim() || null;
+function unauthenticated(): Response {
+  return Response.json(
+    {
+      error: "unauthenticated",
+      message:
+        "Sign the request as the subscriber: send x-orbital-subscriber, x-orbital-timestamp and x-orbital-signature.",
+    },
+    { status: 401 },
+  );
 }
 
 function errorResponse(err: unknown): Response {
@@ -85,16 +117,10 @@ function present(record: SubscriptionRecord) {
 }
 
 export async function GET(req: Request): Promise<Response> {
-  const subscriber = subscriberFrom(req);
-  if (!subscriber) {
-    return Response.json(
-      {
-        error: "unauthenticated",
-        message: "Send the subscriber identity in the x-orbital-subscriber header.",
-      },
-      { status: 401 },
-    );
-  }
+  const auth = verifySubscriberRequest(req);
+  if (!auth.ok) return unauthenticated();
+  // The address that signed, never the raw header.
+  const subscriber = auth.subscriber;
 
   const requested = new URL(req.url).searchParams.get("subscriber");
   if (requested && requested !== subscriber) {
@@ -116,30 +142,31 @@ export async function GET(req: Request): Promise<Response> {
 }
 
 export async function POST(req: Request): Promise<Response> {
-  const subscriber = subscriberFrom(req);
-  if (!subscriber) {
-    return Response.json(
-      {
-        error: "unauthenticated",
-        message: "Send the subscriber identity in the x-orbital-subscriber header.",
-      },
-      { status: 401 },
-    );
-  }
+  // Turned away before the body is read: missing headers, a malformed
+  // subscriber and a stale timestamp need nothing from the body.
+  const claim = readSubscriberClaim(req.headers);
+  if (!claim.ok) return unauthenticated();
 
   let body: { offering?: unknown; webhookTarget?: unknown; tier?: unknown };
   try {
-    const raw = await req.text();
-    if (Buffer.byteLength(raw, "utf8") > MAX_BODY_BYTES) {
+    const raw = Buffer.from(await req.arrayBuffer());
+    if (raw.byteLength > MAX_BODY_BYTES) {
       return Response.json(
         { error: "payload_too_large", message: `Body is capped at ${MAX_BODY_BYTES} bytes.` },
         { status: 413 },
       );
     }
-    body = raw ? (JSON.parse(raw) as typeof body) : {};
+    // The signature covers the bytes that arrived, so it is checked against
+    // those bytes, before anything parses them.
+    if (!verifySubscriberClaim(claim, req, raw)) return unauthenticated();
+
+    const text = new TextDecoder().decode(raw);
+    body = text ? (JSON.parse(text) as typeof body) : {};
   } catch {
     return Response.json({ error: "invalid_json", message: "Body must be JSON." }, { status: 400 });
   }
+  // The address that signed, never the raw header.
+  const subscriber = claim.subscriber;
 
   if (typeof body.offering !== "string" || typeof body.webhookTarget !== "string") {
     return Response.json(
@@ -150,8 +177,8 @@ export async function POST(req: Request): Promise<Response> {
 
   try {
     const record = await subscriptions.create({
-      // From the header, never the body: a body-supplied subscriber id is a
-      // request to create a subscription in someone else's name.
+      // From the verified header, never the body: a body-supplied subscriber
+      // id is a request to create a subscription in someone else's name.
       subscriber,
       offering: body.offering,
       webhookTarget: body.webhookTarget,

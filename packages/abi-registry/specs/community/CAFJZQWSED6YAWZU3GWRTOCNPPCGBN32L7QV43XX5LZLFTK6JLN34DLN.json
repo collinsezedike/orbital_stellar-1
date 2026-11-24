@@ -1,39 +1,7 @@
 {
   "contractId": "CAFJZQWSED6YAWZU3GWRTOCNPPCGBN32L7QV43XX5LZLFTK6JLN34DLN",
   "description": "Reflector Protocol external CEX/DEX price oracle (SEP-40 oracle over external markets) on Stellar mainnet.",
-  "events": [
-    {
-      "data": [
-        {
-          "name": "update_data",
-          "type": {
-            "item": {
-              "elements": ["val", "i128"],
-              "type": "tuple"
-            },
-            "type": "vec"
-          }
-        }
-      ],
-      "name": "UpdateEvent",
-      "topics": [
-        {
-          "doc": "Fixed prefix topic, always \"REFLECTOR\".",
-          "name": "event_name",
-          "type": "symbol"
-        },
-        {
-          "doc": "Fixed prefix topic, always \"update\".",
-          "name": "prefix_topic_1",
-          "type": "symbol"
-        },
-        {
-          "name": "timestamp",
-          "type": "u64"
-        }
-      ]
-    }
-  ],
+  "events": [],
   "functions": [
     {
       "name": "base",
@@ -517,7 +485,6 @@
     "AAAAAgAAAAAAAAAAAAAACUZlZUNvbmZpZwAAAAAAAAIAAAABAAAAAAAAAARTb21lAAAAAQAAA+0AAAACAAAAEwAAAAsAAAAAAAAAAAAAAAROb25l",
     "AAAAAQAAAAAAAAAAAAAACVByaWNlRGF0YQAAAAAAAAIAAAAAAAAABXByaWNlAAAAAAAACwAAAAAAAAAJdGltZXN0YW1wAAAAAAAABg==",
     "AAAAAQAAAAAAAAAAAAAACkNvbmZpZ0RhdGEAAAAAAAgAAAAAAAAABWFkbWluAAAAAAAAEwAAAAAAAAAGYXNzZXRzAAAAAAPqAAAH0AAAAAVBc3NldAAAAAAAAAAAAAAKYmFzZV9hc3NldAAAAAAH0AAAAAVBc3NldAAAAAAAAAAAAAAKY2FjaGVfc2l6ZQAAAAAABAAAAAAAAAAIZGVjaW1hbHMAAAAEAAAAAAAAAApmZWVfY29uZmlnAAAAAAfQAAAACUZlZUNvbmZpZwAAAAAAAAAAAAAYaGlzdG9yeV9yZXRlbnRpb25fcGVyaW9kAAAABgAAAAAAAAAKcmVzb2x1dGlvbgAAAAAABA==",
-    "AAAAAQAAAAAAAAAAAAAAC1ByaWNlVXBkYXRlAAAAAAIAAAAAAAAABG1hc2sAAAAOAAAAAAAAAAZwcmljZXMAAAAAA+oAAAAL",
-    "AAAABQAAAAAAAAAAAAAAC1VwZGF0ZUV2ZW50AAAAAAIAAAAJUkVGTEVDVE9SAAAAAAAABnVwZGF0ZQAAAAAAAgAAAAAAAAAJdGltZXN0YW1wAAAAAAAABgAAAAEAAAAAAAAAC3VwZGF0ZV9kYXRhAAAAA+oAAAPtAAAAAgAAAAAAAAALAAAAAAAAAAI="
+    "AAAAAQAAAAAAAAAAAAAAC1ByaWNlVXBkYXRlAAAAAAIAAAAAAAAABG1hc2sAAAAOAAAAAAAAAAZwcmljZXMAAAAAA+oAAAAL"
   ]
 }

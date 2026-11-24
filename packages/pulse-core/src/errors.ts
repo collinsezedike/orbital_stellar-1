@@ -76,9 +76,29 @@ export class NetworkMismatchError extends Error {
   }
 }
 
+/**
+ * Why a Soroban RPC request failed, as {@link SorobanRpcError.code}. Branch on
+ * it instead of parsing the message. `SorobanRpcClient` assigns:
+ *
+ * - `"network"`: the request failed before any response arrived.
+ * - `"rate_limit"`: HTTP 429.
+ * - `"auth"`: HTTP 401 or 403.
+ * - `"server"`: HTTP 5xx, a JSON-RPC server error (-32000 to -32099), or a
+ *   transaction that `pollTransaction` did not see land in time.
+ * - `"invalid_request"`: any other HTTP 4xx or JSON-RPC error, or a response
+ *   that is not valid JSON or lacks the expected result.
+ * - `"unknown"`: any other unsuccessful HTTP status.
+ */
 export type SorobanRpcErrorCode =
   "network" | "rate_limit" | "auth" | "invalid_request" | "server" | "unknown";
 
+/**
+ * What a {@link SorobanRpcError} is built with besides its message: its `code`,
+ * whether a retry can help, and optionally the HTTP status, the server's retry
+ * delay and the underlying cause. Pass it when you throw one from your own
+ * `SorobanRpc` implementation, since `SorobanSubscriber` retries only errors
+ * marked `retryable`.
+ */
 export type SorobanRpcErrorOptions = {
   code: SorobanRpcErrorCode;
   retryable: boolean;

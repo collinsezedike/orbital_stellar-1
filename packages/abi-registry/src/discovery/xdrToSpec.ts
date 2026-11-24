@@ -19,6 +19,12 @@ import type {
   UserDefinedType,
 } from "../spec.js";
 
+/**
+ * Thrown when auto-discovery encounters an `xdr.ScSpecTypeDef` variant that
+ * has no mapping into {@link TypeSpec}.
+ *
+ * @param typeName - The unrecognized XDR `ScSpecType` switch name.
+ */
 export class UnsupportedSpecTypeError extends Error {
   constructor(typeName: string) {
     super(`Unsupported Soroban spec type for auto-discovery: "${typeName}"`);

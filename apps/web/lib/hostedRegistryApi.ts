@@ -28,7 +28,7 @@ import type { TaxonomyRecord, LabelRecord } from "@/lib/registryData";
 export type HostedApiEnvelope<T> = {
   data: T;
   servedFrom: string;
-  asOfLedger: number;
+  asOfLedger: number | null;
   stale: boolean;
 };
 

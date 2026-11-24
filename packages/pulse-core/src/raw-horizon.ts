@@ -36,8 +36,39 @@
 
 // ---------------------------------------------------------------------------
 // Re-export generated Horizon OpenAPI component types
+//
+// Each name carries its TSDoc inside the braces: the generated file must not
+// be edited, and TypeScript reads a re-export's comment from the export
+// specifier, not from the statement around it.
 // ---------------------------------------------------------------------------
-export type { components, operations, paths } from "./_raw-horizon.gen.js";
+export type {
+  /**
+   * Horizon's reusable OpenAPI definitions, generated from its OpenAPI
+   * description: `components["schemas"]` holds the named schemas its endpoints
+   * share (for example `components["schemas"]["Account"]`) and
+   * `components["parameters"]` the shared request parameters. Use it to type a
+   * raw Horizon response you fetch yourself; the events pulse-core emits are
+   * the normalized `*Event` types instead. Do not edit the generated file: run
+   * `pnpm generate:horizon-types` to regenerate it.
+   */
+  components,
+  /**
+   * Every operation in Horizon's OpenAPI description by its operation id (for
+   * example `operations["ListAllAccounts"]`), each with its `parameters`,
+   * `requestBody` and `responses`. Use it to type the query parameters or the
+   * response of one specific endpoint. It is generated: do not edit the
+   * generated file, run `pnpm generate:horizon-types` to regenerate it.
+   */
+  operations,
+  /**
+   * Every endpoint in Horizon's OpenAPI description by URL path (for example
+   * `paths["/accounts"]`); each HTTP method a path supports points at its entry
+   * in {@link operations}. Use it when you know the URL you are calling and
+   * want that endpoint's types. It is generated: do not edit the generated
+   * file, run `pnpm generate:horizon-types` to regenerate it.
+   */
+  paths,
+} from "./_raw-horizon.gen.js";
 
 import type { components as _HorizonComponents } from "./_raw-horizon.gen.js";
 

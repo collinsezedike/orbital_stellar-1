@@ -104,7 +104,7 @@ const OPENAPI_DOCUMENT = {
         required: ["data", "servedFrom", "asOfLedger", "stale"],
         properties: {
           servedFrom: { type: "string" },
-          asOfLedger: { type: "integer" },
+          asOfLedger: { type: "integer", nullable: true },
           stale: { type: "boolean" },
         },
       },

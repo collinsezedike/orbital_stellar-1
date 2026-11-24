@@ -66,6 +66,7 @@ export function meetsMinimumTrust(trust: AttestationTrust, minimum: AttestationT
   return TRUST_RANK[trust] >= TRUST_RANK[minimum];
 }
 
+/** Policy options passed to {@link resolveAttestations} to scope, verify, and filter contract attestations. */
 export type ResolveAttestationsOptions = {
   /** The contract the attestations are about. Envelopes for any other contract are rejected. */
   contractId: string;
@@ -85,6 +86,7 @@ export type ResolveAttestationsOptions = {
   now?: Date;
 };
 
+/** A verified attestation paired with its canonical payload hash and derived {@link AttestationTrust} tier. */
 export type ResolvedAttestation = {
   readonly envelope: AttestationEnvelope<AttestationDocument>;
   /** {@link attestationHash} of the payload. */
@@ -92,12 +94,14 @@ export type ResolvedAttestation = {
   readonly trust: AttestationTrust;
 };
 
+/** An attestation excluded by {@link resolveAttestations}, recording why it failed verification or policy checks. */
 export type RejectedAttestation = {
   readonly envelope: AttestationEnvelope<AttestationDocument>;
   readonly code: AttestationInvalidCode | "wrong-contract" | "below-minimum-trust";
   readonly reason: string;
 };
 
+/** Partitioned outcome of {@link resolveAttestations}, containing ranked live, superseded, and rejected attestations. */
 export type ResolveAttestationsResult = {
   /** Live attestations, best first: higher trust tier, then more recent, then by hash. */
   readonly effective: readonly ResolvedAttestation[];
