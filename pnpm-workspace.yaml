@@ -40,10 +40,13 @@ allowBuilds:
 # proxy-addr <2.0.8 mishandles an IPv4-mapped IPv6 trust-proxy subnet, so a
 # spoofed client IP is trusted (critical advisory); reached via express in
 # examples/express-starter.
-# body-parser >=2.0.0 <2.4.0 (GHSA-27r3-jxmh-p828) - reached via express in express-starter
-# follow-redirects >=1.16.0 <=1.16.1 (GHSA-mrwp-f3q8-3g9p) - reached via @stellar/stellar-sdk > axios
-# source-map-js <1.2.2 (via postcss / @tailwindcss/node), and brace-expansion
-# 2.x <2.1.6 and 5.x <5.0.11 (via minimatch). Each major is scoped separately so
+# body-parser >=2.0.0 <2.4.0 (GHSA-27r3-jxmh-p828) - reached via express in
+# examples/express-starter.
+# follow-redirects >=1.16.0 <=1.16.1 (GHSA-mrwp-f3q8-3g9p) - reached via
+# @stellar/stellar-sdk > axios.
+# GHSA bumps from the 2026-10-23 audit, all reached transitively and all
+# same-major: source-map-js <1.2.2 (via postcss / @tailwindcss/node), and
+# brace-expansion 2.x <2.1.6 and 5.x <5.0.11 (via minimatch). Each major is scoped separately so
 # minimatch's two consumers stay on the line they require.
 overrides:
   "path-to-regexp@0": 0.1.13
