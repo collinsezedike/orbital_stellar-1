@@ -79,10 +79,19 @@ export async function POST(req: Request) {
   const generatedSecret = !callerSecret;
 
   // Validate caller-supplied address; default to a valid StrKey if not provided.
+  // A provided-but-invalid address is a caller error, not something to silently
+  // replace - the demo would then lie about what was asked for.
   const rawAddress = body.address?.trim().slice(0, MAX_ADDRESS_LENGTH);
-  const address = rawAddress && StrKey.isValidEd25519PublicKey(rawAddress)
-    ? rawAddress
-    : SAMPLE_TO;
+  if (rawAddress && !StrKey.isValidEd25519PublicKey(rawAddress)) {
+    return Response.json(
+      {
+        error: "invalid_address",
+        message: "Address must be a valid Stellar Ed25519 public key (starts with G).",
+      },
+      { status: 400 },
+    );
+  }
+  const address = rawAddress || SAMPLE_TO;
 
   const event = generateSamplePayment(address);
   const payload = JSON.stringify(event);
