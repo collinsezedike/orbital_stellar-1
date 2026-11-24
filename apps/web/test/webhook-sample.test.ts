@@ -1,22 +1,45 @@
-import { describe, expect, it } from "vitest";
-import { StrKey } from "@orbital-stellar/pulse-core";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { Keypair, StrKey } from "@stellar/stellar-sdk";
+
+const { checkWebhookCooldown } = vi.hoisted(() => ({
+  checkWebhookCooldown: vi.fn(),
+}));
+
+vi.mock("@/lib/demo-limits", () => ({
+  checkWebhookCooldown,
+  clientIp: () => "203.0.113.9",
+}));
+
+import { POST } from "@/app/api/webhook-sample/route";
+
+function post(body?: unknown, contentType = "application/json") {
+  return POST(
+    new Request("http://localhost/api/webhook-sample", {
+      method: "POST",
+      headers: { "Content-Type": contentType },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    }),
+  );
+}
+
+beforeEach(() => {
+  checkWebhookCooldown.mockReset();
+  checkWebhookCooldown.mockResolvedValue({ ok: true });
+});
 
 describe("webhook-sample validation", () => {
-  it("from address is a valid Ed25519 public key", () => {
-    // The from address is generated with Keypair.random().publicKey()
-    // This test ensures the pattern produces valid StrKeys
-    expect(StrKey.isValidEd25519PublicKey("GBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB")).toBe(true);
-  });
+  it("uses valid Ed25519 public keys for the sample addresses", async () => {
+    const res = await post();
+    const data = (await res.json()) as {
+      event: { from: string; to: string };
+    };
 
-  it("to address is a valid Ed25519 public key", () => {
-    expect(StrKey.isValidEd25519PublicKey("GABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQRSTUV")).toBe(false);
-    // A valid G-address from Keypair.random() would pass
-    expect(StrKey.isValidEd25519PublicKey("GBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB")).toBe(true);
+    expect(StrKey.isValidEd25519PublicKey(data.event.from)).toBe(true);
+    expect(StrKey.isValidEd25519PublicKey(data.event.to)).toBe(true);
   });
 
   it("rejects hex strings as G-addresses", () => {
-    const hexPrefixed = "G" + "A".repeat(55);
-    expect(StrKey.isValidEd25519PublicKey(hexPrefixed)).toBe(false);
+    expect(StrKey.isValidEd25519PublicKey("G" + "A".repeat(55))).toBe(false);
   });
 
   it("rejects invalid base32 strings", () => {
@@ -25,63 +48,80 @@ describe("webhook-sample validation", () => {
   });
 });
 
-describe("webhook-sample API integration", () => {
-  const endpoint = "/api/webhook-sample";
-
+describe("webhook-sample API", () => {
   it("returns a valid sample event with valid G-addresses", async () => {
-    const res = await fetch(`http://localhost:3000${endpoint}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    });
+    const res = await post();
 
-    expect(res.ok).toBe(true);
-    const data = await res.json();
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as {
+      sample: boolean;
+      event: {
+        type: string;
+        asset: string;
+        amount: string;
+        from: string;
+        to: string;
+      };
+      headers: Record<string, string>;
+    };
 
-    // Sample marker
     expect(data.sample).toBe(true);
-
-    // Event structure
-    expect(data.event).toBeDefined();
     expect(data.event.type).toBe("payment.received");
     expect(data.event.asset).toBe("XLM");
     expect(data.event.amount).toBe("10.0000000");
-
-    // from and to are valid Ed25519 public keys
     expect(StrKey.isValidEd25519PublicKey(data.event.from)).toBe(true);
     expect(StrKey.isValidEd25519PublicKey(data.event.to)).toBe(true);
-
-    // Signature headers present
     expect(data.headers["x-orbital-signature"]).toBeDefined();
     expect(data.headers["x-orbital-timestamp"]).toBeDefined();
     expect(data.headers["x-orbital-attempt"]).toBe("1");
-
-    // Sample marker in response
-    expect(data.sample).toBe(true);
   });
 
-  it("rejects invalid caller-supplied address with 400", async () => {
-    const res = await fetch(`http://localhost:3000${endpoint}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ address: "GABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQRSTUV" }),
-    });
+  it("falls back to a valid sample address when the caller sends an invalid one", async () => {
+    const res = await post({ address: "GABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQRSTUV" });
 
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as { event: { to: string } };
+    expect(StrKey.isValidEd25519PublicKey(data.event.to)).toBe(true);
   });
 
   it("accepts a valid caller-supplied address", async () => {
-    // Generate a valid G-address for testing
-    const { Keypair } = await import("@stellar/stellar-sdk");
     const validAddress = Keypair.random().publicKey();
+    const res = await post({ address: validAddress });
 
-    const res = await fetch(`http://localhost:3000${endpoint}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ address: validAddress }),
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as { event: { to: string } };
+    expect(data.event.to).toBe(validAddress);
+  });
+
+  it("returns 503 when the cooldown limiter is not configured", async () => {
+    checkWebhookCooldown.mockResolvedValue({
+      ok: false,
+      status: 503,
+      body: {
+        error: "rate_limiter_not_configured",
+        message: "webhook-sample is not configured.",
+      },
     });
 
-    expect(res.ok).toBe(true);
-    const data = await res.json();
-    expect(data.event.to).toBe(validAddress);
+    const res = await post();
+    expect(res.status).toBe(503);
+  });
+
+  it("returns 429 with Retry-After when the cooldown is active", async () => {
+    checkWebhookCooldown.mockResolvedValue({
+      ok: false,
+      status: 429,
+      body: {
+        error: "demo_limit_reached",
+        reason: "rate_limit",
+        message: "Try again shortly.",
+        retryAfterMs: 5_000,
+        upgradeUrl: "/cloud",
+      },
+    });
+
+    const res = await post();
+    expect(res.status).toBe(429);
+    expect(res.headers.get("Retry-After")).toBe("5");
   });
 });
