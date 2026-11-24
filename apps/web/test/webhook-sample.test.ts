@@ -76,12 +76,12 @@ describe("webhook-sample API", () => {
     expect(data.headers["x-orbital-attempt"]).toBe("1");
   });
 
-  it("falls back to a valid sample address when the caller sends an invalid one", async () => {
+  it("rejects an invalid caller-supplied address with 400", async () => {
     const res = await post({ address: "GABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQRSTUV" });
 
-    expect(res.status).toBe(200);
-    const data = (await res.json()) as { event: { to: string } };
-    expect(StrKey.isValidEd25519PublicKey(data.event.to)).toBe(true);
+    expect(res.status).toBe(400);
+    const data = (await res.json()) as { error: string };
+    expect(data.error).toBe("invalid_address");
   });
 
   it("accepts a valid caller-supplied address", async () => {
